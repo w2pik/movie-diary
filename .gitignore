@@ -1,7 +1,3 @@
 __pycache__/
 *.pyc
 .env
-# Ignore runtime data (only include in repo for initial deploy)
-# movies.db and posters/ are included intentionally
-posters/
-movies.db
