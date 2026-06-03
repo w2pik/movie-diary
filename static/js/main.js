@@ -387,7 +387,7 @@
                 </div>
             </div>
             <div class="detail-section">
-                <h3>📖 简介</h3>
+                <h3>📖 剧情简介</h3>
                 <div class="detail-summary">${valOrNA(movie.summary)}</div>
             </div>
             <div class="detail-section">

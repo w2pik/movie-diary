@@ -358,6 +358,59 @@ def _get_wikipedia_metadata(title: str, year: str = "", original_title: str = ""
     return merged
 
 
+def _extract_plot_summary(soup, lang: str = "en") -> str | None:
+    """从 Wikipedia 页面提取剧情简介（Plot / 剧情章节），而非文章首段概述"""
+    plot_ids_lower = {
+        "en": ["plot", "synopsis", "plot summary"],
+        "zh": ["剧情", "情節", "情节", "故事", "故事大纲", "故事大綱"],
+    }
+    ids = plot_ids_lower.get(lang, plot_ids_lower["en"])
+
+    content = soup.select_one("#mw-content-text .mw-parser-output")
+    if not content:
+        return None
+
+    plot_start = None
+    for h2 in content.select("h2"):
+        # id 可能在 <h2 id="Plot"> 上，也可能在 <span id="Plot">
+        hid = (h2.get("id") or "").lower()
+        span_id = ""
+        span = h2.select_one("span[id]")
+        if span:
+            span_id = span.get("id", "").lower()
+        h2_text = h2.get_text(strip=True).lower()
+
+        if any(id in hid for id in ids) or any(id in span_id for id in ids) or any(id in h2_text for id in ids):
+            plot_start = h2
+            break
+
+    if not plot_start:
+        return None
+
+    # 收集 Plot 章节下的段落，直到下一个 h2
+    # 注意：新 Wikipedia 布局中 p 可能有空 class 属性，且不一定是 h2 的 sibling
+    paragraphs = []
+    current = plot_start.find_next()
+    while current:
+        if current.name == "h2":
+            break
+        if current.name == "p":
+            cls = current.get("class") or []
+            # 跳过有特殊 class 的 p（如 mw-empty-elt）
+            if not cls or cls == [""]:
+                text = current.get_text(separator=" ", strip=True)
+                text = re.sub(r'\s*\[\d+\]\s*', ' ', text)
+                text = re.sub(r'\s*\[.*?\]\s*', ' ', text)
+                text = re.sub(r'\s+', ' ', text).strip()
+                if len(text) > 30:
+                    paragraphs.append(text)
+        current = current.find_next()
+
+    if paragraphs:
+        return " ".join(paragraphs)
+    return None
+
+
 def _extract_wikipedia_infobox(page_url: str, lang: str = "en") -> dict | None:
     """从 Wikipedia 页面提取 infobox 结构化数据"""
     try:
@@ -463,20 +516,11 @@ def _extract_wikipedia_infobox(page_url: str, lang: str = "en") -> dict | None:
 
         # ── 额外提取：不在 infobox 中的字段 ──
 
-        # 简介 — 从文章第一段提取
+        # 剧情简介 — 从 Plot / 剧情 章节提取，而非文章首段（首段是概述不是剧情）
         if not result.get("summary"):
-            lead_p = soup.select_one("#mw-content-text .mw-parser-output > p:not(.mw-empty-elt)")
-            if lead_p:
-                # 用 separator=" " 避免链接周围丢失空格
-                text = lead_p.get_text(separator=" ", strip=True)
-                # 删掉引用标记 [1] [2] 等
-                text = re.sub(r'\s*\[\d+\]\s*', ' ', text)
-                # 删掉发音指南
-                text = re.sub(r'\s*\[.*?\]\s*', ' ', text)
-                # 压缩多余空格
-                text = re.sub(r'\s+', ' ', text).strip()
-                if len(text) > 30:
-                    result["summary"] = text[:500]
+            summary_text = _extract_plot_summary(soup, lang)
+            if summary_text:
+                result["summary"] = summary_text[:600]
 
         # 原片名 — 从页面的 og:title 或页面标题提取
         if not result.get("original_title"):
