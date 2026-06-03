@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- 胶片背景 -->
+  <rect width="48" height="48" rx="8" fill="#1a1a2e"/>
+  <!-- 胶片齿孔 -->
+  <rect x="4" y="2" width="4" height="4" rx="1" fill="#e8b84b"/>
+  <rect x="4" y="10" width="4" height="4" rx="1" fill="#e8b84b"/>
+  <rect x="4" y="18" width="4" height="4" rx="1" fill="#e8b84b"/>
+  <rect x="4" y="26" width="4" height="4" rx="1" fill="#e8b84b"/>
+  <rect x="4" y="34" width="4" height="4" rx="1" fill="#e8b84b"/>
+  <rect x="4" y="42" width="4" height="4" rx="1" fill="#e8b84b"/>
+  <rect x="40" y="2" width="4" height="4" rx="1" fill="#e8b84b"/>
+  <rect x="40" y="10" width="4" height="4" rx="1" fill="#e8b84b"/>
+  <rect x="40" y="18" width="4" height="4" rx="1" fill="#e8b84b"/>
+  <rect x="40" y="26" width="4" height="4" rx="1" fill="#e8b84b"/>
+  <rect x="40" y="34" width="4" height="4" rx="1" fill="#e8b84b"/>
+  <rect x="40" y="42" width="4" height="4" rx="1" fill="#e8b84b"/>
+  <!-- 胶片框 -->
+  <rect x="11" y="4" width="26" height="40" rx="3" fill="none" stroke="#e8b84b" stroke-width="1.5"/>
+  <!-- 播放按钮 (三角形) -->
+  <polygon points="20,14 20,34 34,24" fill="#e8b84b"/>
+  <!-- 底部胶片框 -->
+  <rect x="14" y="37" width="20" height="3" rx="1" fill="#e8b84b" opacity="0.5"/>
+  <rect x="14" y="41" width="14" height="2" rx="1" fill="#e8b84b" opacity="0.3"/>
+</svg>

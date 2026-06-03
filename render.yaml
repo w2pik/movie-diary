@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: movie-diary
+    env: python
+    region: singapore
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: PYTHONIOENCODING=utf-8 DATA_DIR=/var/data python app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1

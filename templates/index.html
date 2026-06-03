@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的电影日记</title>
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
+    <link rel="stylesheet" href="/static/css/style.css?v=5">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<header class="header">
+    <div class="header-row">
+        <h1 class="logo">🎬 电影日记</h1>
+
+        <nav class="tabs" id="mainTabs">
+            <button class="tab active" data-tab="wall">电影墙</button>
+            <button class="tab" data-tab="stats">统计</button>
+        </nav>
+
+        <!-- 桌面端搜索 -->
+        <form class="search-desktop" id="searchDesktop" onsubmit="return false">
+            <input type="text" id="searchInputDesktop" placeholder="搜索电影名、导演、演员..." autocomplete="off">
+            <button type="button" id="searchBtnDesktop">🔍</button>
+        </form>
+
+        <div class="header-actions">
+            <button class="btn-icon" id="btnToggleSearch" title="搜索">🔍</button>
+            <button class="btn-add" id="btnAddMovie">＋</button>
+            <span class="header-count"><span id="movieCount">--</span></span>
+        </div>
+    </div>
+    <!-- 移动端搜索栏 -->
+    <form class="search-mobile" id="searchMobile" onsubmit="return false">
+        <input type="text" id="searchInputMobile" placeholder="搜索电影名、导演、演员..." autocomplete="off">
+        <button type="button" id="searchBtnMobile">🔍</button>
+    </form>
+</header>
+
+<!-- ═══════════ 电影墙视图 ═══════════ -->
+<div class="view" id="viewWall">
+
+    <!-- 统计栏 -->
+    <div class="stats-bar" id="statsBar">
+        <div class="stat-item">
+            <span class="stat-value" id="statTotal">--</span>
+            <span class="stat-label">看过</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value" id="statAvg">--</span>
+            <span class="stat-label">均分</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value" id="statYear">--</span>
+            <span class="stat-label">年份跨度</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value" id="statCountry">--</span>
+            <span class="stat-label">国家/地区</span>
+        </div>
+    </div>
+
+    <!-- 筛选栏 -->
+    <div class="filter-bar" id="filterBar">
+        <div class="filter-group">
+            <label>排序</label>
+            <select id="sortSelect">
+                <option value="watch_time" data-order="DESC">最近观看 ↓</option>
+                <option value="watch_time" data-order="ASC">最早观看 ↑</option>
+                <option value="douban_rating" data-order="DESC">评分最高 ↓</option>
+                <option value="douban_rating" data-order="ASC">评分最低 ↑</option>
+                <option value="year" data-order="DESC">最新上映 ↓</option>
+                <option value="year" data-order="ASC">最早上映 ↑</option>
+                <option value="title" data-order="ASC">片名 A-Z</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>年份</label>
+            <select id="yearFilter"><option value="">全部</option></select>
+        </div>
+        <div class="filter-group">
+            <label>地区</label>
+            <select id="countryFilter"><option value="">全部</option></select>
+        </div>
+        <div class="filter-group">
+            <label>类型</label>
+            <select id="genreFilter"><option value="">全部</option></select>
+        </div>
+        <div class="filter-group">
+            <label>最低评分</label>
+            <select id="ratingFilter">
+                <option value="">不限</option>
+                <option value="9">≥ 9.0</option>
+                <option value="8">≥ 8.0</option>
+                <option value="7">≥ 7.0</option>
+                <option value="6">≥ 6.0</option>
+            </select>
+        </div>
+        <button id="clearFilters" class="btn-clear">✕ 清除</button>
+    </div>
+
+    <!-- 活跃标签 -->
+    <div class="active-tags" id="activeTags"></div>
+
+    <!-- 电影网格 -->
+    <div class="movie-grid" id="movieGrid"></div>
+</div>
+
+<!-- ═══════════ 统计分析视图 ═══════════ -->
+<div class="view" id="viewStats" style="display:none">
+
+    <!-- 统计摘要 -->
+    <div class="stats-summary-row" id="statsSummaryRow">
+        <div class="summary-card">
+            <div class="summary-value" id="sTotal">--</div>
+            <div class="summary-label">总观影</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-value" id="sAvgRating">--</div>
+            <div class="summary-label">豆瓣均分</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-value" id="sBestYear">--</div>
+            <div class="summary-label">最多年份</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-value" id="sAvgPerMonth">--</div>
+            <div class="summary-label">月均观影</div>
+        </div>
+    </div>
+
+    <!-- 年度统计图表 -->
+    <div class="chart-section">
+        <div class="chart-header">
+            <h3>📅 年度观影统计</h3>
+        </div>
+        <div class="chart-wrap">
+            <canvas id="chartYearly"></canvas>
+        </div>
+    </div>
+
+    <!-- 月度统计图表 -->
+    <div class="chart-section">
+        <div class="chart-header">
+            <h3>📆 月度观影统计</h3>
+            <div class="chart-controls">
+                <select id="statsYearSelect">
+                    <option value="">全部年份</option>
+                </select>
+            </div>
+        </div>
+        <div class="chart-wrap chart-wrap-half">
+            <canvas id="chartMonthly"></canvas>
+        </div>
+    </div>
+
+    <!-- 累计趋势 + 星期分布 -->
+    <div class="chart-row">
+        <div class="chart-section chart-half">
+            <div class="chart-header"><h3>📈 累计观影趋势</h3></div>
+            <div class="chart-wrap">
+                <canvas id="chartCumulative"></canvas>
+            </div>
+        </div>
+        <div class="chart-section chart-half">
+            <div class="chart-header"><h3>📊 星期分布</h3></div>
+            <div class="chart-wrap">
+                <canvas id="chartWeekday"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 观影热力图 -->
+    <div class="chart-section">
+        <div class="chart-header"><h3>🔥 观影热力图 (月份 × 星期)</h3></div>
+        <div class="heatmap-wrap" id="heatmapWrap">
+            <!-- JS动态填充 -->
+        </div>
+    </div>
+
+    <!-- 类型 + 国家 分布 -->
+    <div class="chart-row">
+        <div class="chart-section chart-half">
+            <div class="chart-header"><h3>🎭 类型分布 Top 15</h3></div>
+            <div class="chart-wrap chart-wrap-tall">
+                <canvas id="chartGenre"></canvas>
+            </div>
+        </div>
+        <div class="chart-section chart-half">
+            <div class="chart-header"><h3>🌍 国家分布</h3></div>
+            <div class="chart-wrap chart-wrap-tall">
+                <canvas id="chartCountry"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════ 弹窗 ═══════════ -->
+
+<!-- 电影详情弹窗 -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modal">
+        <button class="modal-close" id="modalClose">✕</button>
+        <div class="modal-content" id="modalContent"></div>
+    </div>
+</div>
+
+<!-- 添加电影弹窗 -->
+<div class="modal-overlay" id="addModalOverlay">
+    <div class="modal" id="addModal">
+        <button class="modal-close" id="addModalClose">✕</button>
+        <div class="modal-content">
+            <div class="add-form">
+                <h2 class="add-form-title">➕ 添加电影</h2>
+
+                <div class="form-row">
+                    <div class="form-group flex-2">
+                        <label>电影名 <span class="required">*</span></label>
+                        <input type="text" id="addTitle" placeholder="输入电影中文名...">
+                    </div>
+                    <div class="form-group">
+                        <label>原名</label>
+                        <input type="text" id="addOriginalTitle" placeholder="英文原名（可选）">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>豆瓣评分</label>
+                        <input type="number" id="addDoubanRating" placeholder="如 8.5" min="0" max="10" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>我的评分</label>
+                        <input type="number" id="addMyRating" placeholder="如 9" min="0" max="10" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>年份</label>
+                        <input type="text" id="addYear" placeholder="如 2024">
+                    </div>
+                    <div class="form-group">
+                        <label>观影时间</label>
+                        <input type="datetime-local" id="addWatchTime">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>导演</label>
+                        <input type="text" id="addDirector" placeholder="导演名">
+                    </div>
+                    <div class="form-group">
+                        <label>国家</label>
+                        <input type="text" id="addCountry" placeholder="如 美国">
+                    </div>
+                    <div class="form-group">
+                        <label>上映日期</label>
+                        <input type="date" id="addReleaseDate">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>影片类型</label>
+                        <input type="text" id="addGenre" placeholder="如 剧情/悬疑">
+                    </div>
+                    <div class="form-group">
+                        <label>片长</label>
+                        <input type="text" id="addDuration" placeholder="如 128分钟">
+                    </div>
+                    <div class="form-group">
+                        <label>语言</label>
+                        <input type="text" id="addLanguage" placeholder="如 英语">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>主演</label>
+                    <input type="text" id="addCast" placeholder="主演名字，用/分隔">
+                </div>
+
+                <div class="form-group">
+                    <label>标签</label>
+                    <input type="text" id="addTags" placeholder="标签，用/分隔">
+                </div>
+
+                <div class="form-group">
+                    <label>简介</label>
+                    <textarea id="addSummary" rows="3" placeholder="电影简介..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn-cancel" id="addCancel">取消</button>
+                    <button class="btn-submit" id="addSubmit">✨ 添加并自动获取封面</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/main.js?v=6"></script>
+</body>
+</html>
