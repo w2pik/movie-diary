@@ -168,7 +168,12 @@ def _get_tmdb_metadata(tmdb_url: str) -> dict:
             resp_en.text, re.IGNORECASE,
         )
         if match:
-            metadata["original_title"] = match.group(1)
+            title = match.group(1)
+            # 清理年份后缀，如 "Inception (2010)" → "Inception"
+            title = re.sub(r'\s*\(\d{4}\)\s*$', '', title).strip()
+            # 也清理 "Movie Name (2010 film)" 格式
+            title = re.sub(r'\s*\(\d{4}\s+film\)\s*$', '', title, flags=re.IGNORECASE).strip()
+            metadata["original_title"] = title
 
     # Release date (完整日期)
     match = re.search(r'(\d{4}-\d{2}-\d{2})', text)
@@ -182,6 +187,13 @@ def _get_tmdb_metadata(tmdb_url: str) -> dict:
         metadata["douban_rating"] = str(round(score, 1))
 
     return metadata
+
+
+def _has_ascii_alpha(text: str) -> bool:
+    """检查文本是否包含英文字母"""
+    if not text:
+        return False
+    return bool(re.search(r'[A-Za-z]', text))
 
 
 def _clean_wiki_text(text: str) -> str:
@@ -522,16 +534,25 @@ def _extract_wikipedia_infobox(page_url: str, lang: str = "en") -> dict | None:
             if summary_text:
                 result["summary"] = summary_text[:600]
 
-        # 原片名 — 从页面的 og:title 或页面标题提取
+        # 原片名 — 优先从 infobox 字段提取
         if not result.get("original_title"):
-            # 英文 Wikipedia 页面标题格式: "Zodiac (2007 film)"
+            for key in ["Original title", "原名", "英文片名", "英语片名"]:
+                if key in raw:
+                    val = raw[key].get_text(strip=True)
+                    val = re.sub(r'\s*\(\d{4}\)\s*$', '', val).strip()
+                    val = re.sub(r'\s*\(\d{4}\s+film\)\s*$', '', val, flags=re.IGNORECASE).strip()
+                    if val and len(val) < 120:
+                        result["original_title"] = val
+                        break
+
+        # 原片名 — 仅从英文 Wikipedia 页面标题兜底提取
+        if not result.get("original_title") and lang == "en":
             title_tag = soup.select_one("title")
             if title_tag:
                 page_title = title_tag.get_text(strip=True)
                 page_title = re.sub(r'\s*[-–—]\s*Wikipedia.*$', '', page_title).strip()
-                # 去掉 "(2007 film)" 后缀
-                # 去掉 "(2007 film)" 和 "(film)" 后缀
                 clean = re.sub(r'\s*\(\d{4}\s+film\)\s*', '', page_title).strip()
+                clean = re.sub(r'\s*\(\d{4}\)\s*', '', clean).strip()
                 clean = re.sub(r'\s*\(film\)\s*', '', clean).strip()
                 if clean and clean != result.get("title", ""):
                     result["original_title"] = clean
@@ -678,20 +699,24 @@ def fetch_movie_metadata(title: str, year: str = "", original_title: str = "") -
         # 取评分
         if tmdb_data.get("douban_rating") and not metadata.get("douban_rating"):
             metadata["douban_rating"] = tmdb_data["douban_rating"]
-        # 如果 Wikipedia 缺了某些字段，用 TMDb 补
-        for key in ["summary", "genre", "original_title", "duration", "year"]:
-            if tmdb_data.get(key) and not metadata.get(key):
-                val = tmdb_data[key]
-                if key == "genres":
-                    key = "genre"
-                    val = tmdb_data["genres"]
-                if key == "overview":
-                    key = "summary"
-                    val = tmdb_data["overview"]
-                if key == "runtime":
-                    key = "duration"
-                    val = tmdb_data["runtime"]
-                metadata[key] = val
+
+        # 如果 Wikipedia 缺了某些字段，用 TMDb 补（含 TMDb → 数据库字段映射）
+        tmdb_field_map = {
+            "summary": ["overview", "summary"],
+            "genre": ["genres", "genre"],
+            "original_title": ["original_title"],
+            "duration": ["runtime", "duration"],
+            "year": ["year"],
+        }
+        for db_key, tmdb_keys in tmdb_field_map.items():
+            for tk in tmdb_keys:
+                val = tmdb_data.get(tk, "")
+                if val:
+                    existing = metadata.get(db_key, "")
+                    # 覆盖条件：缺失、或 original_title 不含英文字母（可能是中文标题）
+                    if not existing or (db_key == "original_title" and not _has_ascii_alpha(existing)):
+                        metadata[db_key] = val
+                    break  # 找到一个就停
 
     return metadata
 

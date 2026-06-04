@@ -13,6 +13,7 @@
         allTags: [],
         statsCharts: {},
         currentView: "wall",
+        editingMovieId: null,  // 编辑模式下的电影 ID，null 表示新增模式
     };
 
     // ── DOM 快捷方式 ────────────────────────────────────
@@ -150,7 +151,7 @@
     // ═══════════════════════════════════════════════════════
 
     function renderMovieCard(movie) {
-        const posterUrl = movie.cover_local ? `/posters/${movie.cover_local}` : "/posters/_none_";
+        const posterUrl = movie.cover_local ? `/posters/${movie.cover_local}?v=${movie.id}` : "/posters/_none_";
         const year = movie.year || "";
         const rating = movie.douban_rating || "";
         const country = movie.country ? movie.country.split("/")[0] : "";
@@ -213,7 +214,7 @@
 
     function updateActiveTags() {
         const tags = [];
-        if ($("#yearFilter").value) tags.push({ label: `年份: ${$("#yearFilter").value}`, clear: () => { $("#yearFilter").value = ""; } });
+        if ($("#yearFilter").value) tags.push({ label: `观看年份: ${$("#yearFilter").value}`, clear: () => { $("#yearFilter").value = ""; } });
         if ($("#countryFilter").value) tags.push({ label: `地区: ${$("#countryFilter").value}`, clear: () => { $("#countryFilter").value = ""; } });
         if ($("#genreFilter").value) tags.push({ label: `类型: ${$("#genreFilter").value}`, clear: () => { $("#genreFilter").value = ""; } });
         if ($("#ratingFilter").value) tags.push({ label: `≥ ${$("#ratingFilter").value}分`, clear: () => { $("#ratingFilter").value = ""; } });
@@ -344,10 +345,10 @@
     }
 
     function renderModal(movie) {
-        const posterUrl = movie.cover_local ? `/posters/${movie.cover_local}` : "/posters/_none_";
-        const tags = movie.tags ? movie.tags.split("/").filter(Boolean).map(t => t.trim()) : [];
-        const genres = movie.genre ? movie.genre.split("/").filter(Boolean).map(g => g.trim()) : [];
+        const posterUrl = movie.cover_local ? `/posters/${movie.cover_local}?v=${movie.id}` : "/posters/_none_";
         const origTitle = movie.original_title && movie.original_title !== movie.title ? movie.original_title : "";
+
+        const tags = movie.tags ? movie.tags.split("/").filter(Boolean).map(t => t.trim()) : [];
 
         $("#modalContent").innerHTML = `
             <div class="detail-header">
@@ -373,7 +374,7 @@
                         <div class="detail-meta-item"><span class="label">国家</span><span class="value">${valOrNA(movie.country)}</span></div>
                         <div class="detail-meta-item"><span class="label">片长</span><span class="value">${valOrNA(movie.duration)}</span></div>
                         <div class="detail-meta-item"><span class="label">语言</span><span class="value">${valOrNA(movie.language)}</span></div>
-                        <div class="detail-meta-item"><span class="label">上映日期</span><span class="value">${valOrNA(movie.release_date)}</span></div>
+                        <div class="detail-meta-item"><span class="label">上映日期</span><span class="value">${valOrNA(formatDate(movie.release_date))}</span></div>
                         <div class="detail-meta-item editable-field" data-field="watch_time" data-id="${movie.id}">
                             <span class="label">观看时间</span>
                             <span class="value editable-value" title="点击修改">${valOrNA(formatDate(movie.watch_time))}</span>
@@ -383,7 +384,6 @@
                     <div class="detail-tags">
                         ${tags.length ? tags.map(t => `<span class="tag" onclick="event.stopPropagation();window._clickTag('${escHtml(t)}')">${escHtml(t)}</span>`).join("") : '<span class="tag na-tag">暂无标签</span>'}
                     </div>
-                    ${genres.length ? `<div class="detail-tags" style="margin-top:4px">${genres.map(g => `<span class="tag genre-tag">${escHtml(g)}</span>`).join("")}</div>` : ""}
                 </div>
             </div>
             <div class="detail-section">
@@ -399,12 +399,19 @@
                 <div class="detail-cast">${valOrNA(movie.writer)}</div>
             </div>
             <div class="detail-actions">
+                <button class="btn-edit-movie" id="btnEditMovie">✏️ 编辑信息</button>
                 ${hasMissingFields(movie)
                     ? `<button class="btn-enrich-movie" id="btnEnrichMovie">🪄 补全信息</button>`
                     : ""}
                 <button class="btn-delete-movie" id="btnDeleteMovie">🗑️ 删除此电影</button>
             </div>
         `;
+
+        // 绑定编辑事件
+        $("#btnEditMovie").addEventListener("click", function () {
+            closeModal();
+            openAddModal(movie);
+        });
 
         // 绑定补全信息事件
         const enrichBtn = $("#btnEnrichMovie");
@@ -965,11 +972,48 @@
     // 添加电影
     // ═══════════════════════════════════════════════════════
 
-    function openAddModal() {
-        // 设置默认观影时间为当前
-        const now = new Date();
-        const local = now.toISOString().slice(0, 16);
-        $("#addWatchTime").value = local;
+    function openAddModal(movieData) {
+        // 如果传入了电影数据，则为编辑模式
+        const isEdit = !!(movieData && movieData.id);
+        state.editingMovieId = isEdit ? movieData.id : null;
+
+        // 设置默认观影时间为当前（仅新增时）
+        if (!isEdit) {
+            const now = new Date();
+            const local = now.toISOString().slice(0, 16);
+            $("#addWatchTime").value = local;
+        }
+
+        // 更新弹窗标题和按钮
+        $("#addFormTitle").textContent = isEdit ? "✏️ 编辑电影信息" : "➕ 添加电影";
+        $("#addSubmit").textContent = isEdit ? "💾 保存修改" : "✨ 添加并自动获取封面";
+
+        // 预填表单数据
+        if (isEdit) {
+            $("#addTitle").value = movieData.title || "";
+            $("#addOriginalTitle").value = movieData.original_title || "";
+            $("#addDoubanRating").value = movieData.douban_rating || "";
+            $("#addMyRating").value = movieData.my_rating || "";
+            $("#addYear").value = movieData.year || "";
+            $("#addDirector").value = movieData.director || "";
+            $("#addCountry").value = movieData.country || "";
+            $("#addReleaseDate").value = movieData.release_date || "";
+            $("#addGenre").value = movieData.genre || "";
+            $("#addDuration").value = movieData.duration || "";
+            $("#addLanguage").value = movieData.language || "";
+            $("#addCast").value = movieData.cast_info || "";
+            $("#addTags").value = movieData.tags || "";
+            $("#addSummary").value = movieData.summary || "";
+            // 观影时间格式化
+            if (movieData.watch_time) {
+                try {
+                    const d = new Date(movieData.watch_time);
+                    if (!isNaN(d.getTime())) {
+                        $("#addWatchTime").value = d.toISOString().slice(0, 16);
+                    }
+                } catch(e) {}
+            }
+        }
 
         $("#addModalOverlay").classList.add("active");
         document.body.style.overflow = "hidden";
@@ -978,6 +1022,7 @@
     function closeAddModal() {
         $("#addModalOverlay").classList.remove("active");
         document.body.style.overflow = "";
+        state.editingMovieId = null;
         // 清空表单
         $("#addTitle").value = "";
         $("#addOriginalTitle").value = "";
@@ -1002,8 +1047,9 @@
             return;
         }
 
+        const isEdit = !!state.editingMovieId;
         const btn = $("#addSubmit");
-        btn.textContent = "⏳ 正在添加并获取封面...";
+        btn.textContent = isEdit ? "⏳ 正在保存..." : "⏳ 正在添加并获取封面...";
         btn.disabled = true;
 
         const data = {
@@ -1012,7 +1058,7 @@
             douban_rating: $("#addDoubanRating").value.trim(),
             my_rating: $("#addMyRating").value.trim() || "0",
             year: $("#addYear").value.trim(),
-            watch_time: $("#addWatchTime").value.replace("T", " ") + ":00",
+            watch_time: $("#addWatchTime").value ? $("#addWatchTime").value.replace("T", " ") + ":00" : "",
             director: $("#addDirector").value.trim(),
             country: $("#addCountry").value.trim(),
             release_date: $("#addReleaseDate").value.trim(),
@@ -1025,21 +1071,37 @@
         };
 
         try {
-            const result = await API.addMovie(data);
-            if (result.id) {
-                alert(`✅ "${title}" 添加成功！封面正在自动获取中...`);
-                closeAddModal();
-                // 刷新列表
-                await loadMovies();
-                await loadStatsViewIfActive();
+            if (isEdit) {
+                // 编辑模式：直接更新
+                const savedId = state.editingMovieId;
+                const result = await API.updateMovie(savedId, data);
+                if (result.message) {
+                    alert(`✅ "${title}" 已保存！`);
+                    closeAddModal();
+                    await loadMovies();
+                    await loadWallStats();
+                    // 重新打开详情（closeAddModal 会清除 editingMovieId，用保存的 ID）
+                    window._openDetail(savedId);
+                } else {
+                    alert("❌ 保存失败: " + (result.error || "未知错误"));
+                }
             } else {
-                alert("❌ 添加失败: " + (result.error || "未知错误"));
+                // 新增模式：创建并获取封面
+                const result = await API.addMovie(data);
+                if (result.id) {
+                    alert(`✅ "${title}" 添加成功！`);
+                    closeAddModal();
+                    await loadMovies();
+                    await loadStatsViewIfActive();
+                } else {
+                    alert("❌ 添加失败: " + (result.error || "未知错误"));
+                }
             }
         } catch (e) {
-            alert("❌ 添加失败，请检查网络连接");
+            alert(isEdit ? "❌ 保存失败，请检查网络连接" : "❌ 添加失败，请检查网络连接");
             console.error(e);
         } finally {
-            btn.textContent = "✨ 添加并自动获取封面";
+            btn.textContent = isEdit ? "💾 保存修改" : "✨ 添加并自动获取封面";
             btn.disabled = false;
         }
     }
@@ -1050,7 +1112,7 @@
         }
     }
 
-    $("#btnAddMovie").addEventListener("click", openAddModal);
+    $("#btnAddMovie").addEventListener("click", () => openAddModal());
     $("#addCancel").addEventListener("click", closeAddModal);
     $("#addModalClose").addEventListener("click", closeAddModal);
     $("#addModalOverlay").addEventListener("click", function (e) {

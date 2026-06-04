@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>我的电影日记</title>
     <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
-    <link rel="stylesheet" href="/static/css/style.css?v=6">
+    <link rel="stylesheet" href="/static/css/style.css?v=9">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -77,7 +77,7 @@
             </select>
         </div>
         <div class="filter-group">
-            <label>年份</label>
+            <label>观看年份</label>
             <select id="yearFilter"><option value="">全部</option></select>
         </div>
         <div class="filter-group">
@@ -89,7 +89,7 @@
             <select id="genreFilter"><option value="">全部</option></select>
         </div>
         <div class="filter-group">
-            <label>最低评分</label>
+            <label>评分</label>
             <select id="ratingFilter">
                 <option value="">不限</option>
                 <option value="9">≥ 9.0</option>
@@ -213,7 +213,7 @@
         <button class="modal-close" id="addModalClose">✕</button>
         <div class="modal-content">
             <div class="add-form">
-                <h2 class="add-form-title">➕ 添加电影</h2>
+                <h2 class="add-form-title" id="addFormTitle">➕ 添加电影</h2>
 
                 <div class="form-row">
                     <div class="form-group flex-2">
@@ -299,6 +299,6 @@
     </div>
 </div>
 
-<script src="/static/js/main.js?v=6"></script>
+<script src="/static/js/main.js?v=9"></script>
 </body>
 </html>
